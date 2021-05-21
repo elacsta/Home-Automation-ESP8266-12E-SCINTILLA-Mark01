@@ -9,6 +9,7 @@ const char* password = "PASSWORD";// Password of the Wi-Fi network
 #define Relay_2 2
 #define Relay_3 3
 
+volatile byte state = LOW;
 // Interupt Pins
 #define Interupt_R1 1
 #define Interupt_R2 2
@@ -40,12 +41,25 @@ void setup() {
   pinMode(Relay_1, OUTPUT);
   pinMode(Relay_2, OUTPUT);
   pinMode(Relay_3, OUTPUT);
-  pinMode(Interupt_R1, INPUT);
-  pinMode(Interupt_R2, INPUT);
-  pinMode(Interupt_R3, INPUT);
+  pinMode(Interupt_R1, INPUT_PULLUP);
+  pinMode(Interupt_R2, INPUT_PULLUP);
+  pinMode(Interupt_R3, INPUT_PULLUP);
 
+  // Interrupt Checking
+  attachInterrupt(digitalPinToInterrupt(Interupt_R1), Switch_State, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(Interupt_R2), Switch_State, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(Interupt_R3), Switch_State, CHANGE);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+digitalWrite(Relay_1,state);
+digitalWrite(Relay_2,state);
+digitalWrite(Relay_3,state);
+
+}
+
+void Switch_State(){
+  //Triggers when the switch changes its State
+  state=!state
 }
