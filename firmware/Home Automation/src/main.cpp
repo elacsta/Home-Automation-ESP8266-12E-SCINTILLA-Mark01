@@ -1,65 +1,193 @@
-#include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
+#include <ESPAsyncWebServer.h>
+#include <WebSocketsServer.h>
+#include <ArduinoJson.h>
 
-const char* ssid     = "SSID";    // SSID of the Wi-Fi network you want to connect to
-const char* password = "PASSWORD";// Password of the Wi-Fi network
+#define Device1 14 // external device definition
+#define Device2 12
+#define Device3 13
 
-// Relay Pins
-#define Relay_1 1
-#define Relay_2 2
-#define Relay_3 3
+// uint8_t interrupt_1 = D1; //external interrupt definition
+// uint8_t interrupt_2 = D2;
+// uint8_t interrupt_3 = D3;
 
-volatile byte state = LOW;
-// Interupt Pins
-#define Interupt_R1 1
-#define Interupt_R2 2
-#define Interupt_R3 3
+volatile byte relay1 = 0; //interrupt response
+volatile byte relay2 = 0;
+volatile byte relay3 = 0;
+
+volatile byte f1_status = 0; // final Device status
+volatile byte f2_status = 0;
+volatile byte f3_status = 0;
+
+// ICACHE_RAM_ATTR void ISR1(){ //interrupt service routine
+//   relay1 = !relay1;
+// }
+
+// ICACHE_RAM_ATTR void ISR2(){
+//   relay2 = !relay2;
+// }
+
+// ICACHE_RAM_ATTR void ISR3(){
+//   relay3 = !relay3;
+// }
+
+/*the webpage code will store in program memory (PROGMEM funtion used) insted of RAM,
+it can be stored as string literel by using R"=====()=====";
+*/
+char webpage[] PROGMEM = R"=====( 
+
+<!DOCTYPE html>
+<html>
+
+<script>
+
+var connection = new WebSocket('ws://'+location.hostname+':81/');
+
+var button_1_status = 0;
+var button_2_status = 0;
+var button_3_status = 0;
+
+function button_1()
+{
+button_1_status =! button_1_status; 
+console.log("LED 1 Switched");
+send_data();
+}
 
 
-void setup() {
-  // put your setup code here, to run once:
+function button_2()
+{
+button_2_status =! button_2_status; 
+console.log("LED 2 Switched");
+send_data();
+}
 
-  Serial.begin(115200);         // Start the Serial communication to send messages to the computer
-  delay(10);
-  Serial.println('\n');
-  
-  WiFi.begin(ssid, password);             // Connect to the network
-  Serial.print("Connecting to ");
-  Serial.print(ssid); Serial.println(" ...");
+function button_3()
+{
+button_3_status =! button_3_status; 
+console.log("LED 3 Switched");
+send_data();
+}
 
-  int i = 0;
-  while (WiFi.status() != WL_CONNECTED) { // Wait for the Wi-Fi to connect
-    delay(1000);
-    Serial.print(++i); Serial.print(' ');
+
+function send_data()
+{
+var full_data = '{"LED1" :'+button_1_status+',"LED2":'+button_2_status+',"LED3":'+button_3_status+'}';
+connection.send(full_data);
+}
+
+
+</script>
+<body>
+
+<center>
+<h1>Home Automation</h1>
+
+<h3> Device 1 </h3>
+<button onclick= "button_1()" >On/Off</button>
+<h3> Device 2 </h3>
+<button onclick="button_2()">On/Off</button>
+<h3> Device 3 </h3>
+<button onclick="button_3()">On/Off</button>
+</center>
+</body>
+</html>
+)=====";
+
+AsyncWebServer server(80); // server port 80
+WebSocketsServer websockets(81);
+
+void notFound(AsyncWebServerRequest *request)
+{
+  request->send(404, "text/plain", "Page Not found");
+}
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
+{
+
+  switch (type)
+  {
+  case WStype_DISCONNECTED:
+    Serial.printf("[%u] Disconnected!\n", num);
+    break;
+  case WStype_CONNECTED:
+  {
+    IPAddress ip = websockets.remoteIP(num);
+    Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+
+    // send message to client
+    websockets.sendTXT(num, "Connected from server");
+  }
+  break;
+  case WStype_TEXT:
+    Serial.printf("[%u] get Text: %s\n", num, payload);
+    String message = String((char *)(payload));
+    Serial.println(message);
+
+    DynamicJsonDocument doc(200); // defining an instance of json
+    // deserialize the data
+    DeserializationError error = deserializeJson(doc, message);
+    // parse the parameters we expect to receive (TO-DO: error handling)
+    // Test if parsing succeeds.
+    if (error)
+    {
+      Serial.print("deserializeJson() failed: ");
+      Serial.println(error.c_str());
+      return;
+    }
+
+    int webSwitch1 = doc["LED1"];  
+    int webSwitch2 = doc["LED2"];
+    int webSwitch3 = doc["LED3"];
+
+    f1_status = relay1 ^ webSwitch1; //xor --> webswitch value and external switch 
+    f2_status = relay2 ^ webSwitch2;
+    f3_status = relay3 ^ webSwitch3;
+
+    digitalWrite(Device1, f1_status);
+    digitalWrite(Device2, f2_status);
+    digitalWrite(Device3, f3_status);
+  }
+}
+
+void setup()
+{
+  Serial.begin(115200); //serial monitor
+
+  pinMode(Device1, OUTPUT);
+  pinMode(Device2, OUTPUT);
+  pinMode(Device3, OUTPUT);
+
+  // pinMode(interrupt_1, INPUT);
+  // pinMode(interrupt_2, INPUT);
+  // pinMode(interrupt_3, INPUT);
+
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP("ESP-AP", ""); //ssid , password
+  Serial.println("softap");
+  Serial.println("");
+  Serial.println(WiFi.softAPIP());
+
+  if (MDNS.begin("esp")){ //esp.local/
+    Serial.println("MDNS responder started");
   }
 
-  Serial.println('\n');
-  Serial.println("Connection established!");  
-  Serial.print("IP address:\t");
-  Serial.println(WiFi.localIP());         // Send the IP address of the ESP8266 to the computer
-  
-  pinMode(Relay_1, OUTPUT);
-  pinMode(Relay_2, OUTPUT);
-  pinMode(Relay_3, OUTPUT);
-  pinMode(Interupt_R1, INPUT_PULLUP);
-  pinMode(Interupt_R2, INPUT_PULLUP);
-  pinMode(Interupt_R3, INPUT_PULLUP);
+  server.on("/", [](AsyncWebServerRequest *request)
+            { request->send_P(200, "text/html", webpage); });
 
-  // Interrupt Checking
-  attachInterrupt(digitalPinToInterrupt(Interupt_R1), Switch_State, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(Interupt_R2), Switch_State, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(Interupt_R3), Switch_State, CHANGE);
+  server.onNotFound(notFound);
+
+  server.begin(); // it will start webserver
+  websockets.begin(); //websocket start
+  websockets.onEvent(webSocketEvent);
+
+  // attachInterrupt(digitalPinToInterrupt(interrupt_1), ISR1, CHANGE); //interrupt calling
+  // attachInterrupt(digitalPinToInterrupt(interrupt_2), ISR2, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(interrupt_3), ISR3, CHANGE);
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-digitalWrite(Relay_1,state);
-digitalWrite(Relay_2,state);
-digitalWrite(Relay_3,state);
-
-}
-
-void Switch_State(){
-  //Triggers when the switch changes its State
-  state=!state
+void loop()
+{
+  websockets.loop();
 }
