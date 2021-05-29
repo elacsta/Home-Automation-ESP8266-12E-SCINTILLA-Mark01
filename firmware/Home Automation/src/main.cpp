@@ -8,9 +8,9 @@
 #define Device2 12
 #define Device3 13
 
-// uint8_t interrupt_1 = D1; //external interrupt definition
-// uint8_t interrupt_2 = D2;
-// uint8_t interrupt_3 = D3;
+uint8_t interrupt_1 = D1; //external interrupt definition
+uint8_t interrupt_2 = D2;
+uint8_t interrupt_3 = D3;
 
 volatile byte relay1 = 0; //interrupt response
 volatile byte relay2 = 0;
@@ -192,9 +192,9 @@ void setup()
   websockets.begin(); //websocket start
   websockets.onEvent(webSocketEvent);
 
-  // attachInterrupt(digitalPinToInterrupt(interrupt_1), ISR1, CHANGE); //interrupt calling
-  // attachInterrupt(digitalPinToInterrupt(interrupt_2), ISR2, CHANGE);
-  // attachInterrupt(digitalPinToInterrupt(interrupt_3), ISR3, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(interrupt_1), ISR1, CHANGE); //interrupt calling
+  attachInterrupt(digitalPinToInterrupt(interrupt_2), ISR2, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(interrupt_3), ISR3, CHANGE);
 }
 
 void loop()
