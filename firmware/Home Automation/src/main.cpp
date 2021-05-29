@@ -169,9 +169,9 @@ void setup()
   pinMode(Device2, OUTPUT);
   pinMode(Device3, OUTPUT);
 
-  // pinMode(interrupt_1, INPUT);
-  // pinMode(interrupt_2, INPUT);
-  // pinMode(interrupt_3, INPUT);
+  pinMode(interrupt_1, INPUT);
+  pinMode(interrupt_2, INPUT);
+  pinMode(interrupt_3, INPUT);
 
   WiFi.mode(WIFI_AP);
   WiFi.softAP("ESP-AP", ""); //ssid , password
