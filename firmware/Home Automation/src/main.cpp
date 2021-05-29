@@ -20,17 +20,23 @@ volatile byte f1_status = 0; // final Device status
 volatile byte f2_status = 0;
 volatile byte f3_status = 0;
 
-// ICACHE_RAM_ATTR void ISR1(){ //interrupt service routine
-//   relay1 = !relay1;
-// }
+ICACHE_RAM_ATTR void ISR1(){ //interrupt service routine
+  relay1 = !relay1;
+  f1_status = f1_status ^ relay1;  
+  digitalWrite(Device1, f1_status);
+}
 
-// ICACHE_RAM_ATTR void ISR2(){
-//   relay2 = !relay2;
-// }
+ICACHE_RAM_ATTR void ISR2(){
+  relay2 = !relay2;
+  f2_status = f2_status ^ relay2;
+  digitalWrite(Device2, f2_status);
+}
 
-// ICACHE_RAM_ATTR void ISR3(){
-//   relay3 = !relay3;
-// }
+ICACHE_RAM_ATTR void ISR3(){
+  relay3 = !relay3;
+  f3_status = f3_status ^ relay3;
+  digitalWrite(Device3, f3_status);
+}
 
 /*the webpage code will store in program memory (PROGMEM funtion used) insted of RAM,
 it can be stored as string literel by using R"=====()=====";
@@ -141,9 +147,13 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     int webSwitch2 = doc["LED2"];
     int webSwitch3 = doc["LED3"];
 
-    f1_status = relay1 ^ webSwitch1; //xor --> webswitch value and external switch 
-    f2_status = relay2 ^ webSwitch2;
-    f3_status = relay3 ^ webSwitch3;
+    // f1_status = relay1 ^ webSwitch1; //xor --> webswitch value and external switch 
+    // f2_status = relay2 ^ webSwitch2;
+    // f3_status = relay3 ^ webSwitch3;
+
+    f1_status = f1_status ^ webSwitch1;  
+    f2_status = f2_status ^ webSwitch2;
+    f3_status = f3_status ^ webSwitch3;
 
     digitalWrite(Device1, f1_status);
     digitalWrite(Device2, f2_status);
