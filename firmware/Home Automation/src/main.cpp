@@ -4,13 +4,13 @@
 #include <WebSocketsServer.h>
 #include <ArduinoJson.h>
 
-#define Device1 14 // external device definition
+#define Device1 0 // external device definition
 #define Device2 12
 #define Device3 13
 
-uint8_t interrupt_1 = D1; //external interrupt definition
+uint8_t interrupt_1 = D1; //external interrupt definition (for further updates)
 uint8_t interrupt_2 = D2;
-uint8_t interrupt_3 = D3;
+uint8_t interrupt_3 = D5;
 
 volatile byte relay1 = 0; //interrupt response
 volatile byte relay2 = 0;
@@ -20,28 +20,28 @@ volatile byte f1_status = 0; // final Device status
 volatile byte f2_status = 0;
 volatile byte f3_status = 0;
 
-ICACHE_RAM_ATTR void ISR1(){ //interrupt service routine
+ICACHE_RAM_ATTR void ISR1(){ //interrupt service routine 
   relay1 = !relay1;
-  f1_status = f1_status ^ relay1;  
+  f1_status = !f1_status;  
   digitalWrite(Device1, f1_status);
 }
 
 ICACHE_RAM_ATTR void ISR2(){
   relay2 = !relay2;
-  f2_status = f2_status ^ relay2;
+  f2_status = !f2_status;
   digitalWrite(Device2, f2_status);
 }
 
 ICACHE_RAM_ATTR void ISR3(){
   relay3 = !relay3;
-  f3_status = f3_status ^ relay3;
+  f3_status = !f3_status;
   digitalWrite(Device3, f3_status);
 }
 
 /*the webpage code will store in program memory (PROGMEM funtion used) insted of RAM,
-it can be stored as string literel by using R"=====()=====";
+it can be stored as string literel by using R"=====()=====" or R"rawliteral()rawliteral";
 */
-char webpage[] PROGMEM = R"=====( 
+char webpage[] PROGMEM = R"rawliteral( 
 
 <!DOCTYPE html>
 <html>
@@ -99,7 +99,7 @@ connection.send(full_data);
 </center>
 </body>
 </html>
-)=====";
+)rawliteral";
 
 AsyncWebServer server(80); // server port 80
 WebSocketsServer websockets(81);
@@ -147,13 +147,9 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t *payload, size_t length)
     int webSwitch2 = doc["LED2"];
     int webSwitch3 = doc["LED3"];
 
-    // f1_status = relay1 ^ webSwitch1; //xor --> webswitch value and external switch 
-    // f2_status = relay2 ^ webSwitch2;
-    // f3_status = relay3 ^ webSwitch3;
-
-    f1_status = f1_status ^ webSwitch1;  
-    f2_status = f2_status ^ webSwitch2;
-    f3_status = f3_status ^ webSwitch3;
+    f1_status = relay1 ^ webSwitch1; //xor --> webswitch value and external switch 
+    f2_status = relay2 ^ webSwitch2;
+    f3_status = relay3 ^ webSwitch3;
 
     digitalWrite(Device1, f1_status);
     digitalWrite(Device2, f2_status);
@@ -190,9 +186,9 @@ void setup()
 
   server.begin(); // it will start webserver
   websockets.begin(); //websocket start
-  websockets.onEvent(webSocketEvent);
+  websockets.onEvent(webSocketEvent); 
 
-  attachInterrupt(digitalPinToInterrupt(interrupt_1), ISR1, CHANGE); //interrupt calling
+  attachInterrupt(digitalPinToInterrupt(interrupt_1), ISR1, CHANGE); //interrupt calling whenever a statechange occurs
   attachInterrupt(digitalPinToInterrupt(interrupt_2), ISR2, CHANGE);
   attachInterrupt(digitalPinToInterrupt(interrupt_3), ISR3, CHANGE);
 }
